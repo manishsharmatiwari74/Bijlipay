@@ -9,7 +9,6 @@ import com.example.data.model.ElectricityBill
 import com.example.data.model.ElectricityConnection
 import com.example.data.model.UsageReading
 import com.example.data.repository.BijliRepository
-import com.google.firebase.firestore.FirebaseFirestoreException
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
@@ -70,8 +69,7 @@ sealed interface PaymentCheckoutState {
 }
 
 class BijliViewModel(
-    private val repository: BijliRepository,
-    private val currentUserId: String
+    private val repository: BijliRepository
 ) : ViewModel() {
 
     private val _selectedFilter = MutableStateFlow(BillHistoryFilter.ALL)
@@ -90,10 +88,10 @@ class BijliViewModel(
     val actionMessage: StateFlow<String?> = _actionMessage.asStateFlow()
 
     val dashboardState: StateFlow<UiState<BijliDashboardData>> = combine(
-        repository.observeConnections(currentUserId),
-        repository.observeBills(currentUserId),
-        repository.observeReminders(currentUserId),
-        repository.observeUsageReadings(currentUserId)
+        repository.observeConnections(),
+        repository.observeBills(),
+        repository.observeReminders(),
+        repository.observeUsageReadings()
     ) { connections, bills, reminders, readings ->
         val now = System.currentTimeMillis()
         val normalizedBills = bills.map { bill ->
@@ -113,13 +111,9 @@ class BijliViewModel(
         ) as UiState<BijliDashboardData>
     }
         .catch { error ->
-            val firestoreError = generateSequence(error) { it.cause }
-                .filterIsInstance<FirebaseFirestoreException>()
-                .firstOrNull()
-            if (firestoreError == null && error is CancellationException) throw error
-            val rootError = firestoreError ?: error
-            Log.w(TAG, "Error observing BijliPay data", rootError)
-            emit(UiState.Error(rootError.localizedMessage ?: "Failed to load electricity data"))
+            if (error is CancellationException) throw error
+            Log.w(TAG, "Error observing BijliPay data", error)
+            emit(UiState.Error(error.localizedMessage ?: "Failed to load electricity data"))
         }
         .stateIn(
             scope = viewModelScope,
@@ -160,7 +154,6 @@ class BijliViewModel(
         viewModelScope.launch {
             val result = repository.createConnection(
                 ElectricityConnection(
-                    userId = currentUserId,
                     providerName = providerName.trim(),
                     consumerNumber = consumerNumber.trim(),
                     nickname = nickname.trim(),
@@ -212,7 +205,6 @@ class BijliViewModel(
             }
             val result = repository.createBill(
                 ElectricityBill(
-                    userId = currentUserId,
                     connectionId = connection.id,
                     providerName = connection.providerName,
                     consumerNumber = connection.consumerNumber,
@@ -226,11 +218,66 @@ class BijliViewModel(
                 )
             )
             result.onSuccess {
-                _actionMessage.value = "Bill added for ${connection.nickname}"
+                _actionMessage.value = "JVVNL bill added for ${connection.nickname}"
                 onComplete()
             }.onFailure { err ->
                 _actionMessage.value = err.localizedMessage ?: "Failed to add bill"
             }
+        }
+    }
+
+    fun prepareQuickJvvnlBill(
+        existingConnection: ElectricityConnection?,
+        circleName: String,
+        kNumber: String,
+        nickname: String,
+        billingMonth: String,
+        unitsConsumed: Double,
+        amount: Double,
+        dueDateMillis: Long,
+        onReadyToPay: (ElectricityBill) -> Unit
+    ) {
+        viewModelScope.launch {
+            val cleanKNo = kNumber.trim()
+            val cleanNick = nickname.trim().ifBlank { "JVVNL Meter" }
+            val provider = "JVVNL ($circleName)"
+
+            val connectionId = if (existingConnection != null) {
+                existingConnection.id
+            } else {
+                val newConn = ElectricityConnection(
+                    providerName = provider,
+                    consumerNumber = cleanKNo,
+                    nickname = cleanNick
+                )
+                val connRes = repository.createConnection(newConn)
+                if (connRes.isFailure) {
+                    _actionMessage.value = connRes.exceptionOrNull()?.localizedMessage
+                        ?: "Failed to save JVVNL K-Number"
+                    return@launch
+                }
+                connRes.getOrThrow()
+            }
+
+            val draftBill = ElectricityBill(
+                connectionId = connectionId,
+                providerName = existingConnection?.providerName ?: provider,
+                consumerNumber = cleanKNo,
+                nickname = existingConnection?.nickname ?: cleanNick,
+                billingMonth = billingMonth.trim(),
+                unitsConsumed = unitsConsumed,
+                amount = amount,
+                lateFee = 0.0,
+                dueDateMillis = dueDateMillis,
+                status = BillStatus.PENDING.name
+            )
+            repository.createBill(draftBill)
+                .onSuccess { newBillId ->
+                    onReadyToPay(draftBill.copy(id = newBillId))
+                }
+                .onFailure { err ->
+                    _actionMessage.value = err.localizedMessage ?: "Failed to prepare JVVNL bill"
+                }
         }
     }
 
@@ -291,7 +338,6 @@ class BijliViewModel(
             val remindAt = (dueDateMillis - daysBeforeDue * 86_400_000L)
                 .coerceAtLeast(System.currentTimeMillis() + 60_000L)
             val draft = BillReminder(
-                userId = currentUserId,
                 billId = billId,
                 title = title.trim(),
                 consumerNumber = consumerNumber.trim(),
@@ -353,7 +399,6 @@ class BijliViewModel(
             val units = (currentReading - previousReading).coerceAtLeast(0.0)
             val estCost = units * connection.tariffRate
             val reading = UsageReading(
-                userId = currentUserId,
                 connectionId = connection.id,
                 providerName = connection.providerName,
                 monthLabel = monthLabel.trim(),

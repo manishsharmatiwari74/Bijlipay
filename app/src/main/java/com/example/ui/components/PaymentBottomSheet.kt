@@ -107,9 +107,9 @@ fun PaymentBottomSheet(
                         horizontalArrangement = Arrangement.SpaceBetween,
                         verticalAlignment = Alignment.CenterVertically
                     ) {
-                        Column {
+                        Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = "Online Bill Payment",
+                                text = "JVVNL Online Bill Payment",
                                 style = MaterialTheme.typography.titleLarge
                             )
                             Text(
@@ -141,7 +141,7 @@ fun PaymentBottomSheet(
                             modifier = Modifier.padding(14.dp),
                             verticalArrangement = Arrangement.spacedBy(6.dp)
                         ) {
-                            SummaryLine("Consumer No", bill.consumerNumber)
+                            SummaryLine("JVVNL K Number", bill.consumerNumber)
                             SummaryLine("Billing Month", bill.billingMonth)
                             SummaryLine("Units Billed", "${"%.0f".format(bill.unitsConsumed)} kWh")
                             SummaryLine("Energy Charges", formatInr(bill.amount))
@@ -150,6 +150,56 @@ fun PaymentBottomSheet(
                             }
                             HorizontalDivider(modifier = Modifier.padding(vertical = 4.dp))
                             SummaryLine("Total Payable", formatInr(bill.totalPayable), bold = true)
+                        }
+                    }
+
+                    // Official JVVNL Portal Direct Links
+                    Surface(
+                        color = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.5f),
+                        shape = RoundedCornerShape(16.dp),
+                        modifier = Modifier.fillMaxWidth()
+                    ) {
+                        Column(
+                            modifier = Modifier.padding(14.dp),
+                            verticalArrangement = Arrangement.spacedBy(10.dp)
+                        ) {
+                            Text(
+                                text = "Official JVVNL Bill Payment Portals",
+                                style = MaterialTheme.typography.titleSmall,
+                                fontWeight = FontWeight.Bold
+                            )
+                            Row(
+                                modifier = Modifier.fillMaxWidth(),
+                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            ) {
+                                OutlinedButton(
+                                    onClick = {
+                                        openExternalUrl(context, "https://www.bijlimitra.com")
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("BijliMitra")
+                                }
+                                OutlinedButton(
+                                    onClick = {
+                                        openExternalUrl(context, "https://energy.rajasthan.gov.in/jvvnl")
+                                    },
+                                    shape = RoundedCornerShape(12.dp),
+                                    modifier = Modifier.weight(1f)
+                                ) {
+                                    Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(16.dp))
+                                    Spacer(modifier = Modifier.width(6.dp))
+                                    Text("JVVNL Site")
+                                }
+                            }
+                            Text(
+                                text = "JVVNL Toll-Free Helpline: 1912 / 1800-180-6507",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant
+                            )
                         }
                     }
 
@@ -234,9 +284,9 @@ fun PaymentBottomSheet(
                                     val uri = Uri.Builder()
                                         .scheme("upi")
                                         .authority("pay")
-                                        .appendQueryParameter("pa", upiId.trim().ifBlank { "bijlipay@upi" })
-                                        .appendQueryParameter("pn", bill.providerName)
-                                        .appendQueryParameter("tn", "Electricity Bill ${bill.consumerNumber}")
+                                        .appendQueryParameter("pa", upiId.trim().ifBlank { "jvvnl@upi" })
+                                        .appendQueryParameter("pn", "JVVNL Jaipur Discom")
+                                        .appendQueryParameter("tn", "JVVNL Bill K-No ${bill.consumerNumber}")
                                         .appendQueryParameter("am", "%.2f".format(bill.totalPayable))
                                         .appendQueryParameter("cu", "INR")
                                         .build()
@@ -246,7 +296,7 @@ fun PaymentBottomSheet(
                                     } catch (e: Exception) {
                                         Toast.makeText(
                                             context,
-                                            "No external UPI app detected. Use Pay Securely below.",
+                                            "No installed UPI app detected. Use Pay & Record below.",
                                             Toast.LENGTH_SHORT
                                         ).show()
                                     }
@@ -363,11 +413,11 @@ fun PaymentBottomSheet(
                                 color = Color.White
                             )
                             Spacer(modifier = Modifier.width(10.dp))
-                            Text("Processing Payment...")
+                            Text("Recording Payment...")
                         } else {
                             Icon(Icons.Filled.ElectricBolt, contentDescription = null)
                             Spacer(modifier = Modifier.width(8.dp))
-                            Text("Pay ${formatInr(bill.totalPayable)} Securely")
+                            Text("Mark JVVNL Bill Paid (${formatInr(bill.totalPayable)})")
                         }
                     }
                 }
@@ -424,7 +474,7 @@ private fun ReceiptContent(
             Box(contentAlignment = Alignment.Center) {
                 Icon(
                     imageVector = Icons.Filled.CheckCircle,
-                    contentDescription = "Payment Successful",
+                    contentDescription = "JVVNL Payment Recorded",
                     tint = ElectricEmeraldDark,
                     modifier = Modifier.size(40.dp)
                 )
@@ -432,7 +482,7 @@ private fun ReceiptContent(
         }
 
         Text(
-            text = "Payment Successful",
+            text = "JVVNL Bill Paid",
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.Bold
         )
@@ -453,7 +503,7 @@ private fun ReceiptContent(
             ) {
                 SummaryLine("Transaction ID", bill.transactionId ?: "--", bold = true)
                 SummaryLine("Utility Board", bill.providerName)
-                SummaryLine("Consumer No", bill.consumerNumber)
+                SummaryLine("JVVNL K Number", bill.consumerNumber)
                 SummaryLine("Connection", bill.nickname)
                 SummaryLine("Billing Cycle", bill.billingMonth)
                 SummaryLine("Units Consumed", "${"%.0f".format(bill.unitsConsumed)} kWh")
@@ -509,15 +559,23 @@ private fun SummaryLine(label: String, value: String, bold: Boolean = false) {
     }
 }
 
+private fun openExternalUrl(context: android.content.Context, url: String) {
+    try {
+        context.startActivity(Intent(Intent.ACTION_VIEW, Uri.parse(url)))
+    } catch (e: Exception) {
+        Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+    }
+}
+
 private fun shareReceipt(context: android.content.Context, bill: ElectricityBill) {
     val text = buildString {
-        appendLine("BijliPay Digital Electricity Receipt")
+        appendLine("BijliPay • JVVNL Electricity Bill Receipt")
         appendLine("--------------------------------")
         appendLine("Status: PAID")
         appendLine("Amount Paid: ${formatInr(bill.totalPayable)}")
         appendLine("Transaction ID: ${bill.transactionId ?: "--"}")
-        appendLine("Utility: ${bill.providerName} (${bill.nickname})")
-        appendLine("Consumer No: ${bill.consumerNumber}")
+        appendLine("Board: ${bill.providerName} (${bill.nickname})")
+        appendLine("JVVNL K Number: ${bill.consumerNumber}")
         appendLine("Billing Month: ${bill.billingMonth}")
         appendLine("Units: ${"%.0f".format(bill.unitsConsumed)} kWh")
         appendLine("Mode: ${bill.paymentMethod ?: "Online"}")
@@ -525,8 +583,8 @@ private fun shareReceipt(context: android.content.Context, bill: ElectricityBill
     }
     val intent = Intent(Intent.ACTION_SEND).apply {
         type = "text/plain"
-        putExtra(Intent.EXTRA_SUBJECT, "Electricity Bill Receipt - ${bill.billingMonth}")
+        putExtra(Intent.EXTRA_SUBJECT, "JVVNL Bill Receipt - ${bill.billingMonth}")
         putExtra(Intent.EXTRA_TEXT, text)
     }
-    context.startActivity(Intent.createChooser(intent, "Share Receipt"))
+    context.startActivity(Intent.createChooser(intent, "Share JVVNL Receipt"))
 }

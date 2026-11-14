@@ -24,9 +24,9 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.DeleteOutline
+import androidx.compose.material.icons.filled.ElectricBolt
 import androidx.compose.material.icons.filled.ElectricMeter
 import androidx.compose.material.icons.filled.NotificationsActive
-import androidx.compose.material.icons.filled.Receipt
 import androidx.compose.material.icons.filled.ShowChart
 import androidx.compose.material3.Button
 import androidx.compose.material3.ButtonDefaults
@@ -67,6 +67,7 @@ import com.example.ui.viewmodel.BijliDashboardData
 @Composable
 fun DashboardScreen(
     data: BijliDashboardData,
+    onQuickPayJvvnlClick: () -> Unit,
     onAddConnectionClick: () -> Unit,
     onAddBillClick: () -> Unit,
     onAddReminderClick: () -> Unit,
@@ -84,7 +85,7 @@ fun DashboardScreen(
         contentPadding = PaddingValues(horizontal = 18.dp, vertical = 16.dp),
         verticalArrangement = Arrangement.spacedBy(18.dp)
     ) {
-        // Hero Outstanding Card
+        // JVVNL Hero Card
         item {
             Surface(
                 shape = RoundedCornerShape(26.dp),
@@ -109,7 +110,7 @@ fun DashboardScreen(
                         ) {
                             Column {
                                 Text(
-                                    text = "Total Electricity Due",
+                                    text = "JVVNL Total Bill Due",
                                     style = MaterialTheme.typography.labelLarge,
                                     color = Color.White.copy(alpha = 0.78f)
                                 )
@@ -128,7 +129,7 @@ fun DashboardScreen(
                                 Box(contentAlignment = Alignment.Center) {
                                     Icon(
                                         imageVector = Icons.Filled.Bolt,
-                                        contentDescription = "Electricity Balance",
+                                        contentDescription = "JVVNL Electricity Balance",
                                         tint = SolarAmber,
                                         modifier = Modifier.size(28.dp)
                                     )
@@ -157,7 +158,7 @@ fun DashboardScreen(
                                 ) {
                                     Column(modifier = Modifier.weight(1f)) {
                                         Text(
-                                            text = "${nextDueBill.nickname} • ${nextDueBill.providerName}",
+                                            text = "${nextDueBill.nickname} • K No: ${nextDueBill.consumerNumber}",
                                             style = MaterialTheme.typography.titleSmall,
                                             color = Color.White
                                         )
@@ -181,25 +182,21 @@ fun DashboardScreen(
                                 }
                             }
                         } else {
-                            Row(
-                                verticalAlignment = Alignment.CenterVertically,
-                                horizontalArrangement = Arrangement.spacedBy(8.dp)
+                            Button(
+                                onClick = onQuickPayJvvnlClick,
+                                colors = ButtonDefaults.buttonColors(
+                                    containerColor = SolarAmber,
+                                    contentColor = MidnightTeal
+                                ),
+                                shape = RoundedCornerShape(14.dp),
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .height(48.dp)
+                                    .testTag("hero_pay_jvvnl_button")
                             ) {
-                                Icon(
-                                    imageVector = Icons.Filled.ElectricMeter,
-                                    contentDescription = null,
-                                    tint = ElectricEmerald,
-                                    modifier = Modifier.size(18.dp)
-                                )
-                                Text(
-                                    text = if (data.connections.isEmpty()) {
-                                        "Add your meter connection to manage bills"
-                                    } else {
-                                        "All electricity bills are settled!"
-                                    },
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = Color.White.copy(alpha = 0.88f)
-                                )
+                                Icon(Icons.Filled.ElectricBolt, contentDescription = null)
+                                Spacer(modifier = Modifier.width(8.dp))
+                                Text("Pay JVVNL Bill via K-Number", fontWeight = FontWeight.Bold)
                             }
                         }
                     }
@@ -207,29 +204,32 @@ fun DashboardScreen(
             }
         }
 
-        // Quick Actions Grid
+        // Quick Actions Grid (100% JVVNL)
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
                 horizontalArrangement = Arrangement.spacedBy(10.dp)
             ) {
                 QuickActionTile(
+                    icon = Icons.Filled.ElectricBolt,
+                    label = "Pay JVVNL",
+                    tint = SolarAmber,
+                    onClick = {
+                        if (nextDueBill != null) onPayBillClick(nextDueBill)
+                        else onQuickPayJvvnlClick()
+                    },
+                    modifier = Modifier
+                        .weight(1f)
+                        .testTag("quick_pay_jvvnl")
+                )
+                QuickActionTile(
                     icon = Icons.Filled.ElectricMeter,
-                    label = "Add Meter",
+                    label = "Add K-No.",
                     tint = MaterialTheme.colorScheme.primary,
                     onClick = onAddConnectionClick,
                     modifier = Modifier
                         .weight(1f)
                         .testTag("quick_add_connection")
-                )
-                QuickActionTile(
-                    icon = Icons.Filled.Receipt,
-                    label = "Add Bill",
-                    tint = SolarAmber,
-                    onClick = onAddBillClick,
-                    modifier = Modifier
-                        .weight(1f)
-                        .testTag("quick_add_bill")
                 )
                 QuickActionTile(
                     icon = Icons.Filled.NotificationsActive,
@@ -252,7 +252,7 @@ fun DashboardScreen(
             }
         }
 
-        // Saved Meter Connections
+        // Saved JVVNL K-Number Connections
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -260,7 +260,7 @@ fun DashboardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Saved Meters (${data.connections.size})",
+                    text = "JVVNL Meters (${data.connections.size})",
                     style = MaterialTheme.typography.titleMedium
                 )
                 FilledTonalButton(
@@ -269,7 +269,7 @@ fun DashboardScreen(
                 ) {
                     Icon(Icons.Filled.Add, contentDescription = null, modifier = Modifier.size(18.dp))
                     Spacer(modifier = Modifier.width(4.dp))
-                    Text("New Meter")
+                    Text("Add K-No.")
                 }
             }
         }
@@ -289,7 +289,7 @@ fun DashboardScreen(
                     ) {
                         Image(
                             painter = painterResource(id = R.drawable.img_empty_bills),
-                            contentDescription = "No electricity connections added yet",
+                            contentDescription = "No JVVNL connections added yet",
                             contentScale = ContentScale.Crop,
                             modifier = Modifier
                                 .fillMaxWidth()
@@ -297,11 +297,11 @@ fun DashboardScreen(
                                 .clip(RoundedCornerShape(16.dp))
                         )
                         Text(
-                            text = "No Electricity Meter Linked Yet",
+                            text = "No JVVNL K-Number Linked Yet",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Add your DISCOM consumer number (Tata Power, BSES, MSEDCL, BESCOM, etc.) to pay bills, schedule due reminders, and track kWh usage.",
+                            text = "Add your 12-digit JVVNL K-Number (Jaipur, Alwar, Kota, Bharatpur, Dausa & all JVVNL circles) to pay bills, set reminders, and track kWh usage.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )
@@ -315,7 +315,7 @@ fun DashboardScreen(
                         ) {
                             Icon(Icons.Filled.Add, contentDescription = null)
                             Spacer(modifier = Modifier.width(6.dp))
-                            Text("Link Electricity Meter")
+                            Text("Link JVVNL K-Number")
                         }
                     }
                 }
@@ -336,7 +336,7 @@ fun DashboardScreen(
             }
         }
 
-        // Pending & Overdue Bills Section
+        // Pending & Overdue JVVNL Bills Section
         item {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -344,16 +344,14 @@ fun DashboardScreen(
                 verticalAlignment = Alignment.CenterVertically
             ) {
                 Text(
-                    text = "Due & Upcoming Bills (${data.pendingBills.size})",
+                    text = "Due & Upcoming JVVNL Bills (${data.pendingBills.size})",
                     style = MaterialTheme.typography.titleMedium
                 )
-                if (data.connections.isNotEmpty()) {
-                    OutlinedButton(
-                        onClick = onAddBillClick,
-                        shape = RoundedCornerShape(12.dp)
-                    ) {
-                        Text("Add Bill")
-                    }
+                OutlinedButton(
+                    onClick = if (data.connections.isNotEmpty()) onAddBillClick else onQuickPayJvvnlClick,
+                    shape = RoundedCornerShape(12.dp)
+                ) {
+                    Text(if (data.connections.isNotEmpty()) "Add Bill" else "Pay Bill")
                 }
             }
         }
@@ -384,13 +382,9 @@ fun DashboardScreen(
                             }
                         }
                         Column(modifier = Modifier.weight(1f)) {
-                            Text("No Pending Bills", style = MaterialTheme.typography.titleSmall)
+                            Text("No Pending JVVNL Bills", style = MaterialTheme.typography.titleSmall)
                             Text(
-                                text = if (data.connections.isEmpty()) {
-                                    "Link a meter above, then add your upcoming electricity bill."
-                                } else {
-                                    "You're caught up! Tap Add Bill to record a new bill cycle."
-                                },
+                                text = "Tap 'Pay JVVNL Bill via K-Number' above to pay a JVVNL bill right away or add a bill cycle.",
                                 style = MaterialTheme.typography.bodySmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant
                             )
@@ -411,7 +405,7 @@ fun DashboardScreen(
         if (data.paidBills.isNotEmpty()) {
             item {
                 Text(
-                    text = "Recent Payments",
+                    text = "Recent JVVNL Payments",
                     style = MaterialTheme.typography.titleMedium
                 )
             }
@@ -482,7 +476,7 @@ private fun ConnectionCard(
         color = MaterialTheme.colorScheme.surface,
         tonalElevation = 2.dp,
         modifier = Modifier
-            .width(230.dp)
+            .width(235.dp)
             .clickable(onClick = onTrackUsage)
     ) {
         Column(
@@ -522,7 +516,7 @@ private fun ConnectionCard(
                 style = MaterialTheme.typography.titleMedium
             )
             Text(
-                text = "CA: ${connection.consumerNumber}",
+                text = "K No: ${connection.consumerNumber}",
                 style = MaterialTheme.typography.labelSmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
@@ -597,7 +591,7 @@ fun BillListCard(
                     style = MaterialTheme.typography.bodyMedium
                 )
                 Text(
-                    text = "CA ${bill.consumerNumber} • ${"%.0f".format(bill.unitsConsumed)} kWh",
+                    text = "K No: ${bill.consumerNumber} • ${"%.0f".format(bill.unitsConsumed)} kWh",
                     style = MaterialTheme.typography.bodySmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant
                 )
@@ -637,7 +631,7 @@ fun BillListCard(
                             contentColor = Color.White
                         )
                     ) {
-                        Text("Pay Now")
+                        Text("Pay Bill")
                     }
                 }
             }

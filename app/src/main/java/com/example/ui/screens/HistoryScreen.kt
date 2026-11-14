@@ -116,7 +116,7 @@ fun HistoryScreen(
                 value = searchQuery,
                 onValueChange = onSearchChange,
                 leadingIcon = { Icon(Icons.Filled.Search, contentDescription = null) },
-                placeholder = { Text("Search DISCOM, CA number, month, TXN...") },
+                placeholder = { Text("Search JVVNL K-Number, circle, month, TXN...") },
                 singleLine = true,
                 shape = RoundedCornerShape(16.dp),
                 modifier = Modifier
@@ -156,11 +156,11 @@ fun HistoryScreen(
                         verticalArrangement = Arrangement.spacedBy(6.dp)
                     ) {
                         Text(
-                            text = "No matching bills found",
+                            text = "No matching JVVNL bills found",
                             style = MaterialTheme.typography.titleMedium
                         )
                         Text(
-                            text = "Bills you add or pay will appear here with downloadable payment receipts.",
+                            text = "JVVNL bills you add or pay will appear here with shareable payment receipts.",
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant
                         )

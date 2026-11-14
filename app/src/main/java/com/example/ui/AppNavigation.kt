@@ -12,11 +12,9 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawing
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.Logout
 import androidx.compose.material.icons.filled.Bolt
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.NotificationsActive
@@ -29,7 +27,6 @@ import androidx.compose.material.icons.outlined.ShowChart
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.NavigationBar
 import androidx.compose.material3.NavigationBarItem
@@ -45,10 +42,8 @@ import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.key
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -57,7 +52,6 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import androidx.credentials.CredentialManager
 import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
@@ -68,18 +62,15 @@ import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.currentBackStackEntryAsState
 import androidx.navigation.compose.rememberNavController
-import com.example.R
 import com.example.data.model.ElectricityBill
 import com.example.data.repository.BijliRepository
 import com.example.notifications.ReminderScheduler
-import com.example.ui.auth.AuthScreen
-import com.example.ui.auth.authStateFlow
-import com.example.ui.auth.signOutUser
 import com.example.ui.components.AddBillSheet
 import com.example.ui.components.AddConnectionSheet
 import com.example.ui.components.AddReadingSheet
 import com.example.ui.components.AddReminderSheet
 import com.example.ui.components.PaymentBottomSheet
+import com.example.ui.components.QuickPayJvvnlSheet
 import com.example.ui.components.ReceiptModalSheet
 import com.example.ui.screens.DashboardScreen
 import com.example.ui.screens.HistoryScreen
@@ -90,10 +81,6 @@ import com.example.ui.theme.SolarAmber
 import com.example.ui.viewmodel.BijliDashboardData
 import com.example.ui.viewmodel.BijliViewModel
 import com.example.ui.viewmodel.UiState
-import com.google.firebase.Firebase
-import com.google.firebase.auth.FirebaseAuth
-import com.google.firebase.auth.auth
-import com.google.firebase.firestore.FirebaseFirestore
 
 const val ROUTE_DASHBOARD = "dashboard"
 const val ROUTE_HISTORY = "history"
@@ -112,43 +99,18 @@ private enum class BijliTab(
     REMINDERS(ROUTE_REMINDERS, "Reminders", Icons.Filled.NotificationsActive, Icons.Outlined.Notifications)
 }
 
-@Composable
-fun AppNavigation(auth: FirebaseAuth = Firebase.auth) {
-    val currentUser by auth.authStateFlow().collectAsStateWithLifecycle(initialValue = auth.currentUser)
-    val user = currentUser
-
-    if (user == null) {
-        AuthScreen(onAuthSuccess = {})
-    } else {
-        key(user.uid) {
-            BijliMainScaffold(
-                currentUserId = user.uid,
-                userDisplayName = user.displayName ?: user.email ?: "Consumer"
-            )
-        }
-    }
-}
-
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun BijliMainScaffold(
-    currentUserId: String,
-    userDisplayName: String
-) {
+fun AppNavigation() {
     val context = LocalContext.current
-    val scope = rememberCoroutineScope()
-    val credentialManager = remember { CredentialManager.create(context) }
 
     val viewModel: BijliViewModel = viewModel(
-        key = currentUserId,
         factory = viewModelFactory {
             initializer {
                 val app = checkNotNull(this[APPLICATION_KEY]) {
                     "APPLICATION_KEY missing from CreationExtras"
                 }
-                val databaseId = app.getString(R.string.firestore_database_id)
-                val db = FirebaseFirestore.getInstance(databaseId)
-                BijliViewModel(BijliRepository(db), currentUserId)
+                BijliViewModel(BijliRepository(app.applicationContext))
             }
         }
     )
@@ -169,6 +131,7 @@ private fun BijliMainScaffold(
         }
     }
 
+    var showQuickPayJvvnl by remember { mutableStateOf(false) }
     var showAddConnection by remember { mutableStateOf(false) }
     var showAddBill by remember { mutableStateOf(false) }
     var showAddReminder by remember { mutableStateOf(false) }
@@ -227,22 +190,11 @@ private fun BijliMainScaffold(
                                     fontWeight = FontWeight.Bold
                                 )
                                 Text(
-                                    text = "Hi, ${userDisplayName.substringBefore(" ")}",
+                                    text = "JVVNL • Jaipur Discom",
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant
                                 )
                             }
-                        }
-                    },
-                    actions = {
-                        IconButton(
-                            onClick = { signOutUser(credentialManager, scope) },
-                            modifier = Modifier.testTag("sign_out_button")
-                        ) {
-                            Icon(
-                                imageVector = Icons.AutoMirrored.Filled.Logout,
-                                contentDescription = "Sign out"
-                            )
                         }
                     }
                 )
@@ -336,6 +288,7 @@ private fun BijliMainScaffold(
                                 composable(ROUTE_DASHBOARD) {
                                     DashboardScreen(
                                         data = data,
+                                        onQuickPayJvvnlClick = { showQuickPayJvvnl = true },
                                         onAddConnectionClick = { showAddConnection = true },
                                         onAddBillClick = {
                                             if (data.connections.isEmpty()) showAddConnection = true
@@ -404,6 +357,29 @@ private fun BijliMainScaffold(
                                         }
                                     )
                                 }
+                            }
+
+                            if (showQuickPayJvvnl) {
+                                QuickPayJvvnlSheet(
+                                    connections = data.connections,
+                                    onProceedToPay = { existingConn, circle, kNo, nick, month, units, amt, dueMillis ->
+                                        viewModel.prepareQuickJvvnlBill(
+                                            existingConnection = existingConn,
+                                            circleName = circle,
+                                            kNumber = kNo,
+                                            nickname = nick,
+                                            billingMonth = month,
+                                            unitsConsumed = units,
+                                            amount = amt,
+                                            dueDateMillis = dueMillis
+                                        ) { bill ->
+                                            showQuickPayJvvnl = false
+                                            viewModel.resetPaymentState()
+                                            billToPay = bill
+                                        }
+                                    },
+                                    onDismiss = { showQuickPayJvvnl = false }
+                                )
                             }
 
                             if (showAddConnection) {

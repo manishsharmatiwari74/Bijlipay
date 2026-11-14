@@ -72,8 +72,8 @@ fun RemindersScreen(
         if (granted) {
             ReminderScheduler.triggerInstantTestNotification(
                 context = context,
-                title = "BijliPay Alerts Enabled",
-                message = "You will receive electricity bill reminders before your due dates."
+                title = "JVVNL Bill Alerts Enabled",
+                message = "You will receive JVVNL electricity bill reminders before your due dates."
             )
         } else {
             Toast.makeText(
@@ -115,15 +115,15 @@ fun RemindersScreen(
                         )
                         Column(modifier = Modifier.weight(1f)) {
                             Text(
-                                text = if (hasPermission) "Bill Alerts Active" else "Enable Bill Notifications",
+                                text = if (hasPermission) "JVVNL Bill Alerts Active" else "Enable JVVNL Bill Notifications",
                                 style = MaterialTheme.typography.titleSmall,
                                 fontWeight = FontWeight.Bold
                             )
                             Text(
                                 text = if (hasPermission) {
-                                    "${data.activeRemindersCount} active reminder(s) scheduled on your device."
+                                    "${data.activeRemindersCount} active JVVNL reminder(s) scheduled on your device."
                                 } else {
-                                    "Allow notifications so BijliPay can alert you before electricity due dates."
+                                    "Allow notifications so BijliPay can alert you before JVVNL bill due dates."
                                 },
                                 style = MaterialTheme.typography.bodySmall
                             )
@@ -145,8 +145,8 @@ fun RemindersScreen(
                                 if (hasPermission || Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU) {
                                     ReminderScheduler.triggerInstantTestNotification(
                                         context = context,
-                                        title = "Electricity Bill Reminder",
-                                        message = "Reminder test: Pay your electricity bill before due date to avoid late fees."
+                                        title = "JVVNL Bill Reminder",
+                                        message = "Reminder test: Pay your JVVNL electricity bill before due date to avoid late surcharge."
                                     )
                                     Toast.makeText(context, "Test reminder notification sent", Toast.LENGTH_SHORT).show()
                                 } else if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
@@ -264,7 +264,7 @@ private fun ReminderCard(
                             if (reminder.amount > 0) append(formatInr(reminder.amount))
                             if (reminder.consumerNumber.isNotBlank()) {
                                 if (isNotEmpty()) append(" • ")
-                                append("CA ${reminder.consumerNumber}")
+                                append("K No: ${reminder.consumerNumber}")
                             }
                         },
                         style = MaterialTheme.typography.bodySmall

@@ -1,5 +1,8 @@
 package com.example.ui.components
 
+import android.content.Intent
+import android.net.Uri
+import android.widget.Toast
 import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -8,15 +11,23 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.ElectricBolt
+import androidx.compose.material.icons.filled.OpenInNew
 import androidx.compose.material3.Button
+import androidx.compose.material3.ButtonDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.ModalBottomSheet
+import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -28,24 +39,263 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.unit.dp
 import com.example.data.model.ElectricityBill
 import com.example.data.model.ElectricityConnection
 import com.example.data.model.MeterType
+import com.example.ui.theme.MidnightTeal
 import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 
-private val popularProviders = listOf(
-    "Tata Power",
-    "BSES Rajdhani",
-    "MSEDCL",
-    "BESCOM",
-    "Adani Electricity",
-    "UPPCL"
+private val jvvnlCircles = listOf(
+    "Jaipur City",
+    "Jaipur District",
+    "Alwar",
+    "Kota",
+    "Bharatpur",
+    "Dausa",
+    "Sawai Madhopur",
+    "Tonk",
+    "Bundi",
+    "Baran",
+    "Jhalawar",
+    "Karauli",
+    "Dholpur"
 )
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+fun QuickPayJvvnlSheet(
+    connections: List<ElectricityConnection>,
+    onProceedToPay: (
+        existingConnection: ElectricityConnection?,
+        circleName: String,
+        kNumber: String,
+        nickname: String,
+        billingMonth: String,
+        unitsConsumed: Double,
+        amount: Double,
+        dueDateMillis: Long
+    ) -> Unit,
+    onDismiss: () -> Unit
+) {
+    val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
+    val context = LocalContext.current
+
+    var selectedConn by remember(connections) { mutableStateOf(connections.firstOrNull()) }
+    var selectedCircle by remember { mutableStateOf(jvvnlCircles.first()) }
+    var kNumber by remember { mutableStateOf(selectedConn?.consumerNumber ?: "") }
+    var nickname by remember { mutableStateOf(selectedConn?.nickname ?: "Home JVVNL Meter") }
+    val defaultMonth = remember {
+        SimpleDateFormat("MMM yyyy", Locale.getDefault()).format(Calendar.getInstance().time)
+    }
+    var billingMonth by remember { mutableStateOf(defaultMonth) }
+    var amountText by remember { mutableStateOf("") }
+    var unitsText by remember { mutableStateOf("200") }
+    var errorMsg by remember { mutableStateOf<String?>(null) }
+
+    ModalBottomSheet(
+        onDismissRequest = onDismiss,
+        sheetState = sheetState,
+        shape = RoundedCornerShape(topStart = 28.dp, topEnd = 28.dp)
+    ) {
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .verticalScroll(rememberScrollState())
+                .padding(horizontal = 22.dp, vertical = 8.dp)
+                .padding(bottom = 28.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp)
+        ) {
+            Text(
+                text = "Pay JVVNL Electricity Bill",
+                style = MaterialTheme.typography.titleLarge,
+                fontWeight = FontWeight.Bold
+            )
+            Text(
+                text = "Jaipur Vidyut Vitran Nigam Ltd. (JVVNL) • Enter your 12-digit K-Number and bill amount.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant
+            )
+
+            OutlinedButton(
+                onClick = {
+                    val intent = Intent(Intent.ACTION_VIEW, Uri.parse("https://www.bijlimitra.com"))
+                    try {
+                        context.startActivity(intent)
+                    } catch (e: Exception) {
+                        Toast.makeText(context, "Unable to open browser", Toast.LENGTH_SHORT).show()
+                    }
+                },
+                shape = RoundedCornerShape(14.dp),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("quick_pay_bijlimitra_button")
+            ) {
+                Icon(Icons.Filled.OpenInNew, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Check & Pay Live Bill on JVVNL BijliMitra")
+            }
+
+            if (connections.isNotEmpty()) {
+                Text("Saved JVVNL K-Numbers", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    FilterChip(
+                        selected = selectedConn == null,
+                        onClick = {
+                            selectedConn = null
+                            kNumber = ""
+                            nickname = "Home JVVNL Meter"
+                        },
+                        label = { Text("New K-Number") }
+                    )
+                    connections.forEach { conn ->
+                        FilterChip(
+                            selected = selectedConn?.id == conn.id,
+                            onClick = {
+                                selectedConn = conn
+                                kNumber = conn.consumerNumber
+                                nickname = conn.nickname
+                            },
+                            label = { Text("${conn.nickname} (${conn.consumerNumber})") }
+                        )
+                    }
+                }
+            }
+
+            if (selectedConn == null) {
+                Text("JVVNL Circle", style = MaterialTheme.typography.labelMedium)
+                Row(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .horizontalScroll(rememberScrollState()),
+                    horizontalArrangement = Arrangement.spacedBy(8.dp)
+                ) {
+                    jvvnlCircles.forEach { circle ->
+                        FilterChip(
+                            selected = selectedCircle == circle,
+                            onClick = { selectedCircle = circle },
+                            label = { Text(circle) }
+                        )
+                    }
+                }
+            }
+
+            OutlinedTextField(
+                value = kNumber,
+                onValueChange = {
+                    kNumber = it.filter { ch -> ch.isDigit() }.take(12)
+                    errorMsg = null
+                },
+                label = { Text("JVVNL K Number (12-digit)") },
+                placeholder = { Text("e.g. 210112345678") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                singleLine = true,
+                enabled = selectedConn == null,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("quick_pay_k_number_input")
+            )
+
+            if (selectedConn == null) {
+                OutlinedTextField(
+                    value = nickname,
+                    onValueChange = { nickname = it; errorMsg = null },
+                    label = { Text("Meter Nickname (e.g. Home / Shop)") },
+                    singleLine = true,
+                    modifier = Modifier.fillMaxWidth()
+                )
+            }
+
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(10.dp)
+            ) {
+                OutlinedTextField(
+                    value = billingMonth,
+                    onValueChange = { billingMonth = it; errorMsg = null },
+                    label = { Text("Bill Month") },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f)
+                )
+                OutlinedTextField(
+                    value = unitsText,
+                    onValueChange = { unitsText = it; errorMsg = null },
+                    label = { Text("Units (kWh)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                    singleLine = true,
+                    modifier = Modifier.weight(0.9f)
+                )
+            }
+
+            OutlinedTextField(
+                value = amountText,
+                onValueChange = { amountText = it; errorMsg = null },
+                label = { Text("JVVNL Bill Amount (₹)") },
+                placeholder = { Text("Enter payable bill amount") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
+                singleLine = true,
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .testTag("quick_pay_amount_input")
+            )
+
+            if (errorMsg != null) {
+                Text(
+                    text = errorMsg.orEmpty(),
+                    color = MaterialTheme.colorScheme.error,
+                    style = MaterialTheme.typography.bodySmall
+                )
+            }
+
+            Button(
+                onClick = {
+                    val amt = amountText.toDoubleOrNull()
+                    val units = unitsText.toDoubleOrNull() ?: 0.0
+                    when {
+                        kNumber.trim().length < 6 -> errorMsg = "Enter a valid JVVNL K Number (at least 6 digits)"
+                        billingMonth.trim().length < 3 -> errorMsg = "Enter billing month"
+                        amt == null || amt <= 0 -> errorMsg = "Enter JVVNL bill amount greater than 0"
+                        else -> onProceedToPay(
+                            selectedConn,
+                            selectedCircle,
+                            kNumber.trim(),
+                            nickname.trim().ifBlank { "JVVNL Meter" },
+                            billingMonth.trim(),
+                            units.coerceAtLeast(0.0),
+                            amt,
+                            System.currentTimeMillis() + 5 * 86_400_000L
+                        )
+                    }
+                },
+                shape = RoundedCornerShape(16.dp),
+                colors = ButtonDefaults.buttonColors(
+                    containerColor = MidnightTeal,
+                    contentColor = Color.White
+                ),
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .height(54.dp)
+                    .testTag("quick_pay_proceed_button")
+            ) {
+                Icon(Icons.Filled.ElectricBolt, contentDescription = null)
+                Spacer(modifier = Modifier.width(8.dp))
+                Text("Proceed to Pay JVVNL Bill")
+            }
+        }
+    }
+}
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -62,11 +312,11 @@ fun AddConnectionSheet(
     onDismiss: () -> Unit
 ) {
     val sheetState = rememberModalBottomSheetState(skipPartiallyExpanded = true)
-    var providerName by remember { mutableStateOf("Tata Power") }
+    var selectedCircle by remember { mutableStateOf(jvvnlCircles.first()) }
     var consumerNumber by remember { mutableStateOf("") }
     var nickname by remember { mutableStateOf("Home Meter") }
     var meterType by remember { mutableStateOf(MeterType.SMART_METER) }
-    var tariffRateText by remember { mutableStateOf("7.5") }
+    var tariffRateText by remember { mutableStateOf("7.65") }
     var targetKwhText by remember { mutableStateOf("350") }
     var billingDayText by remember { mutableStateOf("5") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
@@ -84,40 +334,51 @@ fun AddConnectionSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Add Electricity Connection", style = MaterialTheme.typography.titleLarge)
+            Text("Add JVVNL Connection", style = MaterialTheme.typography.titleLarge)
             Text(
-                "Link your DISCOM meter to pay bills, track usage & get reminders.",
+                "Link your JVVNL (Jaipur Discom) K-Number to pay bills, track usage & get due reminders.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant
             )
 
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer.copy(alpha = 0.5f),
+                shape = RoundedCornerShape(12.dp),
+                modifier = Modifier.fillMaxWidth()
+            ) {
+                Text(
+                    text = "Electricity Board: JVVNL (Jaipur Vidyut Vitran Nigam Ltd.)",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)
+                )
+            }
+
+            Text("Select JVVNL Circle / District", style = MaterialTheme.typography.labelMedium)
             Row(
                 modifier = Modifier
                     .fillMaxWidth()
                     .horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                popularProviders.forEach { preset ->
+                jvvnlCircles.forEach { circle ->
                     FilterChip(
-                        selected = providerName.equals(preset, ignoreCase = true),
-                        onClick = { providerName = preset },
-                        label = { Text(preset) }
+                        selected = selectedCircle == circle,
+                        onClick = { selectedCircle = circle },
+                        label = { Text(circle) }
                     )
                 }
             }
 
             OutlinedTextField(
-                value = providerName,
-                onValueChange = { providerName = it; errorMsg = null },
-                label = { Text("Electricity Board / DISCOM") },
-                singleLine = true,
-                modifier = Modifier.fillMaxWidth()
-            )
-            OutlinedTextField(
                 value = consumerNumber,
-                onValueChange = { consumerNumber = it; errorMsg = null },
-                label = { Text("Consumer / CA Number") },
-                placeholder = { Text("e.g. CA900123456") },
+                onValueChange = {
+                    consumerNumber = it.filter { ch -> ch.isDigit() }.take(12)
+                    errorMsg = null
+                },
+                label = { Text("JVVNL K Number (12-digit)") },
+                placeholder = { Text("e.g. 210112345678") },
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                 singleLine = true,
                 modifier = Modifier
                     .fillMaxWidth()
@@ -188,14 +449,13 @@ fun AddConnectionSheet(
                     val target = targetKwhText.toLongOrNull()
                     val day = billingDayText.toLongOrNull()
                     when {
-                        providerName.trim().length < 2 -> errorMsg = "Enter electricity board name"
-                        consumerNumber.trim().length < 3 -> errorMsg = "Consumer number must be at least 3 characters"
+                        consumerNumber.trim().length < 6 -> errorMsg = "Enter a valid JVVNL K Number (at least 6 digits)"
                         nickname.trim().isEmpty() -> errorMsg = "Enter a meter nickname"
                         tariff == null || tariff <= 0 || tariff > 100 -> errorMsg = "Enter a valid ₹/kWh tariff (1-100)"
                         target == null || target < 10 -> errorMsg = "Monthly target must be at least 10 kWh"
                         day == null || day !in 1L..28L -> errorMsg = "Billing day must be between 1 and 28"
                         else -> onSave(
-                            providerName.trim(),
+                            "JVVNL ($selectedCircle)",
                             consumerNumber.trim(),
                             nickname.trim(),
                             meterType.name,
@@ -211,7 +471,7 @@ fun AddConnectionSheet(
                     .height(52.dp)
                     .testTag("save_connection_button")
             ) {
-                Text("Save Meter Connection")
+                Text("Save JVVNL K-Number")
             }
         }
     }
@@ -240,7 +500,7 @@ fun AddBillSheet(
     var unitsText by remember { mutableStateOf("260") }
     var amountText by remember {
         mutableStateOf(
-            selectedConn?.let { "%.0f".format(260.0 * it.tariffRate) } ?: "1950"
+            selectedConn?.let { "%.0f".format(260.0 * it.tariffRate) } ?: "1989"
         )
     }
     var dueInDays by remember { mutableIntStateOf(6) }
@@ -259,7 +519,7 @@ fun AddBillSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Add Electricity Bill", style = MaterialTheme.typography.titleLarge)
+            Text("Add JVVNL Bill", style = MaterialTheme.typography.titleLarge)
 
             if (connections.isEmpty()) {
                 Surface(
@@ -268,7 +528,7 @@ fun AddBillSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Please add a meter connection first before creating a bill.",
+                        text = "Please add a JVVNL K-Number first before creating a bill.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(14.dp)
@@ -294,7 +554,7 @@ fun AddBillSheet(
                                     amountText = "%.0f".format(units * conn.tariffRate)
                                 }
                             },
-                            label = { Text("${conn.nickname} (${conn.providerName})") }
+                            label = { Text("${conn.nickname} (${conn.consumerNumber})") }
                         )
                     }
                 }
@@ -316,7 +576,7 @@ fun AddBillSheet(
                         onValueChange = {
                             unitsText = it
                             val u = it.toDoubleOrNull()
-                            val rate = selectedConn?.tariffRate ?: 7.5
+                            val rate = selectedConn?.tariffRate ?: 7.65
                             if (u != null && u >= 0) {
                                 amountText = "%.0f".format(u * rate)
                             }
@@ -330,7 +590,7 @@ fun AddBillSheet(
                     OutlinedTextField(
                         value = amountText,
                         onValueChange = { amountText = it; errorMsg = null },
-                        label = { Text("Bill Amount (₹)") },
+                        label = { Text("JVVNL Amount (₹)") },
                         keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Decimal),
                         singleLine = true,
                         modifier = Modifier
@@ -369,7 +629,7 @@ fun AddBillSheet(
                         val units = unitsText.toDoubleOrNull()
                         val amt = amountText.toDoubleOrNull()
                         when {
-                            conn == null -> errorMsg = "Select a meter connection"
+                            conn == null -> errorMsg = "Select a JVVNL K-Number"
                             billingMonth.trim().length < 3 -> errorMsg = "Enter valid billing month"
                             units == null || units < 0 -> errorMsg = "Enter valid kWh units"
                             amt == null || amt <= 0 -> errorMsg = "Enter bill amount greater than 0"
@@ -386,7 +646,7 @@ fun AddBillSheet(
                         .height(52.dp)
                         .testTag("save_bill_button")
                 ) {
-                    Text("Save Electricity Bill")
+                    Text("Save JVVNL Bill")
                 }
             }
         }
@@ -412,14 +672,14 @@ fun AddReminderSheet(
     var selectedBill by remember { mutableStateOf(pendingBills.firstOrNull()) }
     var title by remember {
         mutableStateOf(
-            selectedBill?.let { "Pay ${it.nickname} (${it.providerName})" } ?: "Monthly Electricity Bill"
+            selectedBill?.let { "Pay ${it.nickname} JVVNL Bill" } ?: "Monthly JVVNL Electricity Bill"
         )
     }
     var consumerNumber by remember { mutableStateOf(selectedBill?.consumerNumber ?: "") }
     var amountText by remember { mutableStateOf(selectedBill?.let { "%.0f".format(it.totalPayable) } ?: "1500") }
     var daysBefore by remember { mutableIntStateOf(2) }
     var dueInDays by remember { mutableIntStateOf(5) }
-    var note by remember { mutableStateOf("Avoid late payment penalty") }
+    var note by remember { mutableStateOf("Avoid JVVNL late payment surcharge") }
     var errorMsg by remember { mutableStateOf<String?>(null) }
 
     ModalBottomSheet(
@@ -435,10 +695,10 @@ fun AddReminderSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Schedule Bill Reminder", style = MaterialTheme.typography.titleLarge)
+            Text("Schedule JVVNL Bill Reminder", style = MaterialTheme.typography.titleLarge)
 
             if (pendingBills.isNotEmpty()) {
-                Text("Link to Pending Bill (Optional)", style = MaterialTheme.typography.labelMedium)
+                Text("Link to Pending JVVNL Bill (Optional)", style = MaterialTheme.typography.labelMedium)
                 Row(
                     modifier = Modifier
                         .fillMaxWidth()
@@ -479,8 +739,9 @@ fun AddReminderSheet(
             ) {
                 OutlinedTextField(
                     value = consumerNumber,
-                    onValueChange = { consumerNumber = it },
-                    label = { Text("CA / Meter No.") },
+                    onValueChange = { consumerNumber = it.filter { ch -> ch.isDigit() }.take(12) },
+                    label = { Text("JVVNL K Number") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
                     singleLine = true,
                     modifier = Modifier.weight(1f)
                 )
@@ -609,7 +870,7 @@ fun AddReadingSheet(
     val prevVal = previousText.toDoubleOrNull() ?: 0.0
     val currVal = currentText.toDoubleOrNull() ?: 0.0
     val computedUnits = (currVal - prevVal).coerceAtLeast(0.0)
-    val estCost = computedUnits * (selectedConn?.tariffRate ?: 7.5)
+    val estCost = computedUnits * (selectedConn?.tariffRate ?: 7.65)
 
     ModalBottomSheet(
         onDismissRequest = onDismiss,
@@ -624,7 +885,7 @@ fun AddReadingSheet(
                 .padding(bottom = 28.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp)
         ) {
-            Text("Log Meter Reading", style = MaterialTheme.typography.titleLarge)
+            Text("Log JVVNL Meter Reading", style = MaterialTheme.typography.titleLarge)
 
             if (connections.isEmpty()) {
                 Surface(
@@ -633,7 +894,7 @@ fun AddReadingSheet(
                     modifier = Modifier.fillMaxWidth()
                 ) {
                     Text(
-                        text = "Add a meter connection first to track monthly kWh usage.",
+                        text = "Add a JVVNL K-Number first to track monthly kWh usage.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSecondaryContainer,
                         modifier = Modifier.padding(14.dp)
@@ -653,7 +914,7 @@ fun AddReadingSheet(
                         FilterChip(
                             selected = selectedConn?.id == conn.id,
                             onClick = { selectedConn = conn },
-                            label = { Text(conn.nickname) }
+                            label = { Text("${conn.nickname} (${conn.consumerNumber})") }
                         )
                     }
                 }
@@ -746,7 +1007,7 @@ fun AddReadingSheet(
                         val prev = previousText.toDoubleOrNull()
                         val curr = currentText.toDoubleOrNull()
                         when {
-                            conn == null -> errorMsg = "Select a meter connection"
+                            conn == null -> errorMsg = "Select a JVVNL K-Number"
                             monthLabel.trim().length < 2 -> errorMsg = "Enter a short month label"
                             !Regex("^\\d{4}-\\d{2}$").matches(yearMonth.trim()) -> errorMsg = "Use YYYY-MM format (e.g. 2026-11)"
                             prev == null || prev < 0 -> errorMsg = "Enter valid previous reading"

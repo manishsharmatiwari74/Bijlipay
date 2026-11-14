@@ -1,16 +1,15 @@
 <resources>
     <string name="app_name">BijliPay</string>
-    <string name="app_tagline">Smart Electricity Bills, Reminders &amp; Usage</string>
-    <string name="sign_in_google">Sign in with Google</string>
+    <string name="app_tagline">JVVNL Bill Payment, Reminders &amp; Usage</string>
     <string name="nav_home">Home</string>
     <string name="nav_history">History</string>
     <string name="nav_usage">Usage</string>
     <string name="nav_reminders">Reminders</string>
-    <string name="pay_now">Pay Now</string>
+    <string name="pay_now">Pay JVVNL Bill</string>
     <string name="add_bill">Add Bill</string>
-    <string name="add_connection">Add Meter</string>
+    <string name="add_connection">Add K-No.</string>
     <string name="log_reading">Log Reading</string>
     <string name="add_reminder">Set Reminder</string>
-    <string name="notification_channel_name">Bill Reminders</string>
-    <string name="notification_channel_desc">Alerts before electricity bill due dates</string>
+    <string name="notification_channel_name">JVVNL Bill Reminders</string>
+    <string name="notification_channel_desc">Alerts before JVVNL electricity bill due dates</string>
 </resources>

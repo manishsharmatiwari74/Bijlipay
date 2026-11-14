@@ -1,10 +1,8 @@
 package com.example.data.model
 
-import com.google.firebase.Timestamp
-import com.google.firebase.firestore.DocumentId
-import com.google.firebase.firestore.FieldValue
-import com.google.firebase.firestore.IgnoreExtraProperties
-import com.google.firebase.firestore.ServerTimestamp
+import androidx.room.Entity
+import androidx.room.PrimaryKey
+import java.util.UUID
 
 enum class MeterType(val label: String) {
     SINGLE_PHASE("Single Phase"),
@@ -24,10 +22,9 @@ enum class PaymentMethod(val displayName: String, val subtitle: String) {
     NET_BANKING("Net Banking", "HDFC, SBI, ICICI, Axis & more")
 }
 
-@IgnoreExtraProperties
+@Entity(tableName = "connections")
 data class ElectricityConnection(
-    @DocumentId val id: String = "",
-    val userId: String = "",
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val providerName: String = "",
     val consumerNumber: String = "",
     val nickname: String = "",
@@ -35,27 +32,13 @@ data class ElectricityConnection(
     val tariffRate: Double = 7.5,
     val monthlyTargetKwh: Long = 300L,
     val billingCycleDay: Long = 5L,
-    @ServerTimestamp val createdAt: Timestamp? = null,
-    @ServerTimestamp val updatedAt: Timestamp? = null
-) {
-    fun toCreateMap(): Map<String, Any> = mapOf(
-        "userId" to userId,
-        "providerName" to providerName,
-        "consumerNumber" to consumerNumber,
-        "nickname" to nickname,
-        "meterType" to meterType,
-        "tariffRate" to tariffRate,
-        "monthlyTargetKwh" to monthlyTargetKwh,
-        "billingCycleDay" to billingCycleDay,
-        "createdAt" to FieldValue.serverTimestamp(),
-        "updatedAt" to FieldValue.serverTimestamp()
-    )
-}
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis()
+)
 
-@IgnoreExtraProperties
+@Entity(tableName = "bills")
 data class ElectricityBill(
-    @DocumentId val id: String = "",
-    val userId: String = "",
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val connectionId: String = "",
     val providerName: String = "",
     val consumerNumber: String = "",
@@ -69,8 +52,8 @@ data class ElectricityBill(
     val paidAtMillis: Long? = null,
     val paymentMethod: String? = null,
     val transactionId: String? = null,
-    @ServerTimestamp val createdAt: Timestamp? = null,
-    @ServerTimestamp val updatedAt: Timestamp? = null
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis()
 ) {
     val totalPayable: Double
         get() = amount + lateFee
@@ -81,35 +64,11 @@ data class ElectricityBill(
     fun isCurrentlyOverdue(nowMillis: Long = System.currentTimeMillis()): Boolean {
         return status != BillStatus.PAID.name && dueDateMillis > 0L && dueDateMillis < nowMillis
     }
-
-    fun toCreateMap(): Map<String, Any> {
-        val raw = mutableMapOf<String, Any?>(
-            "userId" to userId,
-            "connectionId" to connectionId,
-            "providerName" to providerName,
-            "consumerNumber" to consumerNumber,
-            "nickname" to nickname,
-            "billingMonth" to billingMonth,
-            "unitsConsumed" to unitsConsumed,
-            "amount" to amount,
-            "lateFee" to lateFee,
-            "dueDateMillis" to dueDateMillis,
-            "status" to status,
-            "paidAtMillis" to paidAtMillis,
-            "paymentMethod" to paymentMethod,
-            "transactionId" to transactionId,
-            "createdAt" to FieldValue.serverTimestamp(),
-            "updatedAt" to FieldValue.serverTimestamp()
-        )
-        @Suppress("UNCHECKED_CAST")
-        return raw.filterValues { it != null } as Map<String, Any>
-    }
 }
 
-@IgnoreExtraProperties
+@Entity(tableName = "reminders")
 data class BillReminder(
-    @DocumentId val id: String = "",
-    val userId: String = "",
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val billId: String = "",
     val title: String = "",
     val consumerNumber: String = "",
@@ -120,34 +79,13 @@ data class BillReminder(
     val enabled: Boolean = true,
     val notified: Boolean = false,
     val note: String? = null,
-    @ServerTimestamp val createdAt: Timestamp? = null,
-    @ServerTimestamp val updatedAt: Timestamp? = null
-) {
-    fun toCreateMap(): Map<String, Any> {
-        val raw = mutableMapOf<String, Any?>(
-            "userId" to userId,
-            "billId" to billId,
-            "title" to title,
-            "consumerNumber" to consumerNumber,
-            "amount" to amount,
-            "dueDateMillis" to dueDateMillis,
-            "remindAtMillis" to remindAtMillis,
-            "daysBeforeDue" to daysBeforeDue,
-            "enabled" to enabled,
-            "notified" to notified,
-            "note" to note?.takeIf { it.isNotBlank() },
-            "createdAt" to FieldValue.serverTimestamp(),
-            "updatedAt" to FieldValue.serverTimestamp()
-        )
-        @Suppress("UNCHECKED_CAST")
-        return raw.filterValues { it != null } as Map<String, Any>
-    }
-}
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis()
+)
 
-@IgnoreExtraProperties
+@Entity(tableName = "usage_readings")
 data class UsageReading(
-    @DocumentId val id: String = "",
-    val userId: String = "",
+    @PrimaryKey val id: String = UUID.randomUUID().toString(),
     val connectionId: String = "",
     val providerName: String = "",
     val monthLabel: String = "",
@@ -158,26 +96,6 @@ data class UsageReading(
     val estimatedCost: Double = 0.0,
     val readingDateMillis: Long = 0L,
     val notes: String? = null,
-    @ServerTimestamp val createdAt: Timestamp? = null,
-    @ServerTimestamp val updatedAt: Timestamp? = null
-) {
-    fun toCreateMap(): Map<String, Any> {
-        val raw = mutableMapOf<String, Any?>(
-            "userId" to userId,
-            "connectionId" to connectionId,
-            "providerName" to providerName,
-            "monthLabel" to monthLabel,
-            "yearMonth" to yearMonth,
-            "previousReading" to previousReading,
-            "currentReading" to currentReading,
-            "unitsKwh" to unitsKwh,
-            "estimatedCost" to estimatedCost,
-            "readingDateMillis" to readingDateMillis,
-            "notes" to notes?.takeIf { it.isNotBlank() },
-            "createdAt" to FieldValue.serverTimestamp(),
-            "updatedAt" to FieldValue.serverTimestamp()
-        )
-        @Suppress("UNCHECKED_CAST")
-        return raw.filterValues { it != null } as Map<String, Any>
-    }
-}
+    val createdAtMillis: Long = System.currentTimeMillis(),
+    val updatedAtMillis: Long = System.currentTimeMillis()
+)
