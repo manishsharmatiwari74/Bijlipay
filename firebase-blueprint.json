@@ -1,0 +1,323 @@
+{
+  "entities": {
+    "ElectricityConnection": {
+      "title": "ElectricityConnection",
+      "description": "A user's electricity meter / DISCOM consumer connection.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the owner."
+        },
+        "providerName": {
+          "type": "string",
+          "description": "DISCOM / electricity utility provider name (e.g., Tata Power, BSES, MSEDCL)."
+        },
+        "consumerNumber": {
+          "type": "string",
+          "description": "Consumer account or CA number."
+        },
+        "nickname": {
+          "type": "string",
+          "description": "Short label such as Home, Office, or Parents House."
+        },
+        "meterType": {
+          "type": "string",
+          "enum": ["SINGLE_PHASE", "THREE_PHASE", "SMART_METER"],
+          "description": "Type of electricity meter."
+        },
+        "tariffRate": {
+          "type": "number",
+          "description": "Average unit rate in INR per kWh."
+        },
+        "monthlyTargetKwh": {
+          "type": "integer",
+          "description": "Monthly energy consumption budget in kWh."
+        },
+        "billingCycleDay": {
+          "type": "integer",
+          "description": "Day of month (1-28) when billing cycle resets."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "providerName",
+        "consumerNumber",
+        "nickname",
+        "meterType",
+        "tariffRate",
+        "monthlyTargetKwh",
+        "billingCycleDay",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "ElectricityBill": {
+      "title": "ElectricityBill",
+      "description": "An electricity bill belonging to a consumer connection, supporting online payment and receipt history.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the owner."
+        },
+        "connectionId": {
+          "type": "string",
+          "description": "Document ID of the parent ElectricityConnection."
+        },
+        "providerName": {
+          "type": "string",
+          "description": "DISCOM name."
+        },
+        "consumerNumber": {
+          "type": "string",
+          "description": "Consumer account number."
+        },
+        "nickname": {
+          "type": "string",
+          "description": "Connection nickname."
+        },
+        "billingMonth": {
+          "type": "string",
+          "description": "Display billing cycle month (e.g., Nov 2026)."
+        },
+        "unitsConsumed": {
+          "type": "number",
+          "description": "Billed electricity consumption in kWh."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Base bill amount in INR."
+        },
+        "lateFee": {
+          "type": "number",
+          "description": "Late payment surcharge in INR."
+        },
+        "dueDateMillis": {
+          "type": "integer",
+          "description": "Due date epoch timestamp in milliseconds."
+        },
+        "status": {
+          "type": "string",
+          "enum": ["PENDING", "OVERDUE", "PAID"],
+          "description": "Current payment status of the bill."
+        },
+        "paidAtMillis": {
+          "type": "integer",
+          "description": "Epoch timestamp in milliseconds when payment succeeded."
+        },
+        "paymentMethod": {
+          "type": "string",
+          "description": "Payment mode used (UPI, Card, Net Banking)."
+        },
+        "transactionId": {
+          "type": "string",
+          "description": "Unique payment reference / receipt number."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "connectionId",
+        "providerName",
+        "consumerNumber",
+        "nickname",
+        "billingMonth",
+        "unitsConsumed",
+        "amount",
+        "lateFee",
+        "dueDateMillis",
+        "status",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "BillReminder": {
+      "title": "BillReminder",
+      "description": "Scheduled notification reminder for an upcoming electricity bill due date.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the owner."
+        },
+        "billId": {
+          "type": "string",
+          "description": "Optional linked ElectricityBill ID, or empty string for custom reminder."
+        },
+        "title": {
+          "type": "string",
+          "description": "Reminder title."
+        },
+        "consumerNumber": {
+          "type": "string",
+          "description": "Consumer number for quick reference."
+        },
+        "amount": {
+          "type": "number",
+          "description": "Bill amount in INR."
+        },
+        "dueDateMillis": {
+          "type": "integer",
+          "description": "Bill due date epoch milliseconds."
+        },
+        "remindAtMillis": {
+          "type": "integer",
+          "description": "Scheduled notification trigger epoch milliseconds."
+        },
+        "daysBeforeDue": {
+          "type": "integer",
+          "description": "Lead days before due date."
+        },
+        "enabled": {
+          "type": "boolean",
+          "description": "Whether the reminder alarm is active."
+        },
+        "notified": {
+          "type": "boolean",
+          "description": "Whether notification has already fired or been acknowledged."
+        },
+        "note": {
+          "type": "string",
+          "description": "Optional reminder note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "billId",
+        "title",
+        "consumerNumber",
+        "amount",
+        "dueDateMillis",
+        "remindAtMillis",
+        "daysBeforeDue",
+        "enabled",
+        "notified",
+        "createdAt",
+        "updatedAt"
+      ]
+    },
+    "UsageReading": {
+      "title": "UsageReading",
+      "description": "Monthly or periodic meter reading log for electricity usage tracking.",
+      "type": "object",
+      "properties": {
+        "userId": {
+          "type": "string",
+          "description": "Authenticated Firebase UID of the owner."
+        },
+        "connectionId": {
+          "type": "string",
+          "description": "Parent ElectricityConnection document ID."
+        },
+        "providerName": {
+          "type": "string",
+          "description": "DISCOM name."
+        },
+        "monthLabel": {
+          "type": "string",
+          "description": "Short chart label (e.g., Nov 26)."
+        },
+        "yearMonth": {
+          "type": "string",
+          "description": "Sortable YYYY-MM key."
+        },
+        "previousReading": {
+          "type": "number",
+          "description": "Opening meter kWh reading."
+        },
+        "currentReading": {
+          "type": "number",
+          "description": "Closing meter kWh reading."
+        },
+        "unitsKwh": {
+          "type": "number",
+          "description": "Consumed units (currentReading - previousReading)."
+        },
+        "estimatedCost": {
+          "type": "number",
+          "description": "Estimated bill cost in INR."
+        },
+        "readingDateMillis": {
+          "type": "integer",
+          "description": "Epoch timestamp in milliseconds when meter was read."
+        },
+        "notes": {
+          "type": "string",
+          "description": "Optional meter note."
+        },
+        "createdAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when created (FieldValue.serverTimestamp())."
+        },
+        "updatedAt": {
+          "type": "string",
+          "format": "date-time",
+          "description": "Server timestamp when updated (FieldValue.serverTimestamp())."
+        }
+      },
+      "required": [
+        "userId",
+        "connectionId",
+        "providerName",
+        "monthLabel",
+        "yearMonth",
+        "previousReading",
+        "currentReading",
+        "unitsKwh",
+        "estimatedCost",
+        "readingDateMillis",
+        "createdAt",
+        "updatedAt"
+      ]
+    }
+  },
+  "firestore": {
+    "/users/{userId}/connections/{connectionId}": {
+      "schema": { "$ref": "#/entities/ElectricityConnection" },
+      "description": "User's saved electricity meter connections."
+    },
+    "/users/{userId}/bills/{billId}": {
+      "schema": { "$ref": "#/entities/ElectricityBill" },
+      "description": "User's electricity bills (pending, overdue, and paid receipts)."
+    },
+    "/users/{userId}/reminders/{reminderId}": {
+      "schema": { "$ref": "#/entities/BillReminder" },
+      "description": "User's scheduled bill due-date reminders."
+    },
+    "/users/{userId}/usageReadings/{readingId}": {
+      "schema": { "$ref": "#/entities/UsageReading" },
+      "description": "User's periodic meter kWh readings for usage analytics."
+    }
+  }
+}

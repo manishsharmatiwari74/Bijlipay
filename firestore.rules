@@ -1,0 +1,243 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    // Default deny safety net
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() >= 1 && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function incoming() {
+      return request.resource.data;
+    }
+
+    function existing() {
+      return resource.data;
+    }
+
+    function isNumber(v) {
+      return v is int || v is float;
+    }
+
+    function isServerTime(v) {
+      return v is timestamp && v <= request.time;
+    }
+
+    function isValidConnection(data, userId) {
+      return data.userId == userId &&
+             data.providerName is string && data.providerName.size() >= 1 && data.providerName.size() <= 80 &&
+             data.consumerNumber is string && data.consumerNumber.size() >= 3 && data.consumerNumber.size() <= 40 &&
+             data.nickname is string && data.nickname.size() >= 1 && data.nickname.size() <= 50 &&
+             data.meterType in ['SINGLE_PHASE', 'THREE_PHASE', 'SMART_METER'] &&
+             isNumber(data.tariffRate) && data.tariffRate > 0 && data.tariffRate <= 100 &&
+             data.monthlyTargetKwh is int && data.monthlyTargetKwh >= 10 && data.monthlyTargetKwh <= 50000 &&
+             data.billingCycleDay is int && data.billingCycleDay >= 1 && data.billingCycleDay <= 28 &&
+             isServerTime(data.createdAt) &&
+             isServerTime(data.updatedAt);
+    }
+
+    function isValidBill(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.connectionId) &&
+             data.providerName is string && data.providerName.size() >= 1 && data.providerName.size() <= 80 &&
+             data.consumerNumber is string && data.consumerNumber.size() >= 3 && data.consumerNumber.size() <= 40 &&
+             data.nickname is string && data.nickname.size() >= 1 && data.nickname.size() <= 50 &&
+             data.billingMonth is string && data.billingMonth.size() >= 3 && data.billingMonth.size() <= 30 &&
+             isNumber(data.unitsConsumed) && data.unitsConsumed >= 0 && data.unitsConsumed <= 100000 &&
+             isNumber(data.amount) && data.amount > 0 && data.amount <= 1000000 &&
+             isNumber(data.lateFee) && data.lateFee >= 0 && data.lateFee <= 100000 &&
+             data.dueDateMillis is int && data.dueDateMillis > 0 &&
+             data.status in ['PENDING', 'OVERDUE', 'PAID'] &&
+             (!('paidAtMillis' in data) || data.paidAtMillis == null || (data.paidAtMillis is int && data.paidAtMillis >= 0)) &&
+             (!('paymentMethod' in data) || data.paymentMethod == null || (data.paymentMethod is string && data.paymentMethod.size() <= 50)) &&
+             (!('transactionId' in data) || data.transactionId == null || (data.transactionId is string && data.transactionId.size() <= 64)) &&
+             isServerTime(data.createdAt) &&
+             isServerTime(data.updatedAt);
+    }
+
+    function isValidReminder(data, userId) {
+      return data.userId == userId &&
+             data.billId is string && data.billId.size() <= 128 &&
+             (data.billId == '' || isValidId(data.billId)) &&
+             data.title is string && data.title.size() >= 1 && data.title.size() <= 100 &&
+             data.consumerNumber is string && data.consumerNumber.size() <= 40 &&
+             isNumber(data.amount) && data.amount >= 0 && data.amount <= 1000000 &&
+             data.dueDateMillis is int && data.dueDateMillis > 0 &&
+             data.remindAtMillis is int && data.remindAtMillis > 0 &&
+             data.daysBeforeDue is int && data.daysBeforeDue >= 0 && data.daysBeforeDue <= 30 &&
+             data.enabled is bool &&
+             data.notified is bool &&
+             (!('note' in data) || data.note == null || (data.note is string && data.note.size() <= 200)) &&
+             isServerTime(data.createdAt) &&
+             isServerTime(data.updatedAt);
+    }
+
+    function isValidUsageReading(data, userId) {
+      return data.userId == userId &&
+             isValidId(data.connectionId) &&
+             data.providerName is string && data.providerName.size() >= 1 && data.providerName.size() <= 80 &&
+             data.monthLabel is string && data.monthLabel.size() >= 2 && data.monthLabel.size() <= 30 &&
+             data.yearMonth is string && data.yearMonth.matches('^[0-9]{4}-[0-9]{2}$') &&
+             isNumber(data.previousReading) && data.previousReading >= 0 && data.previousReading <= 10000000 &&
+             isNumber(data.currentReading) && data.currentReading >= data.previousReading && data.currentReading <= 10000000 &&
+             isNumber(data.unitsKwh) && data.unitsKwh >= 0 && data.unitsKwh <= 100000 &&
+             isNumber(data.estimatedCost) && data.estimatedCost >= 0 && data.estimatedCost <= 1000000 &&
+             data.readingDateMillis is int && data.readingDateMillis > 0 &&
+             (!('notes' in data) || data.notes == null || (data.notes is string && data.notes.size() <= 200)) &&
+             isServerTime(data.createdAt) &&
+             isServerTime(data.updatedAt);
+    }
+
+    match /users/{userId} {
+      allow read, write: if false;
+
+      match /connections/{connectionId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(connectionId);
+        allow create: if isOwner(userId) &&
+                         isValidId(connectionId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'providerName', 'consumerNumber', 'nickname',
+                           'meterType', 'tariffRate', 'monthlyTargetKwh', 'billingCycleDay',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'providerName', 'consumerNumber', 'nickname',
+                           'meterType', 'tariffRate', 'monthlyTargetKwh', 'billingCycleDay',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidConnection(incoming(), userId);
+        allow update: if isOwner(userId) &&
+                         isValidId(connectionId) &&
+                         isValidConnection(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'providerName', 'consumerNumber', 'nickname',
+                           'meterType', 'tariffRate', 'monthlyTargetKwh', 'billingCycleDay', 'updatedAt'
+                         ]);
+      }
+
+      match /bills/{billId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(billId);
+        allow create: if isOwner(userId) &&
+                         isValidId(billId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'connectionId', 'providerName', 'consumerNumber', 'nickname',
+                           'billingMonth', 'unitsConsumed', 'amount', 'lateFee', 'dueDateMillis',
+                           'status', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'connectionId', 'providerName', 'consumerNumber', 'nickname',
+                           'billingMonth', 'unitsConsumed', 'amount', 'lateFee', 'dueDateMillis',
+                           'status', 'paidAtMillis', 'paymentMethod', 'transactionId',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidBill(incoming(), userId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/connections/$(incoming().connectionId));
+        allow update: if isOwner(userId) &&
+                         isValidId(billId) &&
+                         isValidBill(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().connectionId == existing().connectionId &&
+                         incoming().createdAt == existing().createdAt &&
+                         existing().status != 'PAID' &&
+                         (
+                           // Action: Online Payment Completion (transitions to terminal PAID state)
+                           (
+                             incoming().status == 'PAID' &&
+                             incoming().transactionId is string &&
+                             incoming().transactionId.size() >= 6 &&
+                             incoming().transactionId.size() <= 64 &&
+                             incoming().paymentMethod is string &&
+                             incoming().paymentMethod.size() >= 2 &&
+                             incoming().paymentMethod.size() <= 50 &&
+                             incoming().paidAtMillis is int &&
+                             incoming().paidAtMillis > 0 &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'status', 'paidAtMillis', 'paymentMethod', 'transactionId', 'lateFee', 'updatedAt'
+                             ])
+                           ) ||
+                           // Action: Edit Pending/Overdue Bill details
+                           (
+                             incoming().status in ['PENDING', 'OVERDUE'] &&
+                             incoming().diff(existing()).affectedKeys().hasOnly([
+                               'billingMonth', 'unitsConsumed', 'amount', 'lateFee', 'dueDateMillis', 'status', 'updatedAt'
+                             ])
+                           )
+                         );
+      }
+
+      match /reminders/{reminderId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(reminderId);
+        allow create: if isOwner(userId) &&
+                         isValidId(reminderId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'billId', 'title', 'consumerNumber', 'amount',
+                           'dueDateMillis', 'remindAtMillis', 'daysBeforeDue', 'enabled', 'notified',
+                           'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'billId', 'title', 'consumerNumber', 'amount',
+                           'dueDateMillis', 'remindAtMillis', 'daysBeforeDue', 'enabled', 'notified',
+                           'note', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidReminder(incoming(), userId) &&
+                         (incoming().billId == '' || exists(/databases/$(database)/documents/users/$(userId)/bills/$(incoming().billId)));
+        allow update: if isOwner(userId) &&
+                         isValidId(reminderId) &&
+                         isValidReminder(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().billId == existing().billId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'title', 'consumerNumber', 'amount', 'dueDateMillis', 'remindAtMillis',
+                           'daysBeforeDue', 'enabled', 'notified', 'note', 'updatedAt'
+                         ]);
+      }
+
+      match /usageReadings/{readingId} {
+        allow list: if isOwner(userId);
+        allow get, delete: if isOwner(userId) && isValidId(readingId);
+        allow create: if isOwner(userId) &&
+                         isValidId(readingId) &&
+                         incoming().keys().hasAll([
+                           'userId', 'connectionId', 'providerName', 'monthLabel', 'yearMonth',
+                           'previousReading', 'currentReading', 'unitsKwh', 'estimatedCost',
+                           'readingDateMillis', 'createdAt', 'updatedAt'
+                         ]) &&
+                         incoming().keys().hasOnly([
+                           'userId', 'connectionId', 'providerName', 'monthLabel', 'yearMonth',
+                           'previousReading', 'currentReading', 'unitsKwh', 'estimatedCost',
+                           'readingDateMillis', 'notes', 'createdAt', 'updatedAt'
+                         ]) &&
+                         isValidUsageReading(incoming(), userId) &&
+                         exists(/databases/$(database)/documents/users/$(userId)/connections/$(incoming().connectionId));
+        allow update: if isOwner(userId) &&
+                         isValidId(readingId) &&
+                         isValidUsageReading(incoming(), userId) &&
+                         incoming().userId == existing().userId &&
+                         incoming().connectionId == existing().connectionId &&
+                         incoming().createdAt == existing().createdAt &&
+                         incoming().diff(existing()).affectedKeys().hasOnly([
+                           'monthLabel', 'yearMonth', 'previousReading', 'currentReading',
+                           'unitsKwh', 'estimatedCost', 'readingDateMillis', 'notes', 'updatedAt'
+                         ]);
+      }
+    }
+  }
+}

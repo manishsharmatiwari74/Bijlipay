@@ -1,0 +1,6 @@
+{
+  "name": "BijliPay",
+  "description": "Electricity bill payment, due-date reminders, payment history, and meter usage tracking app.",
+  "requestFramePermissions": [],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}
